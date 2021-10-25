@@ -125,9 +125,9 @@ function GetControls(props)
         table.insert(
             ctls,
             {
-                Name = "source_signal_" .. s,
+                Name = "input_name_" .. s,
                 ControlType = "Indicator",
-                IndicatorType = "Led",
+                IndicatorType = "Text",
                 PinStyle = "Output",
                 UserPin = true
             }
@@ -135,13 +135,35 @@ function GetControls(props)
         table.insert(
             ctls,
             {
-                Name = "audio_meter_" .. s,
+                Name = "input_gain_" .. s,
+                ControlType = "Knob",
+                ControlUnit = "Integer",
+                Min = 0,
+                Max = 1400,
+                PinStyle = "Both",
+                UserPin = true
+            }
+        )
+        table.insert(
+            ctls,
+            {
+                Name = "input_meter_" .. s,
                 ControlType = "Indicator",
                 IndicatorType = "Meter",
                 Min = -60,
                 Max = 0,
                 MeterStyle = "Standard",
                 PinStyle = "Output",
+                UserPin = true
+            }
+        )
+        table.insert(
+            ctls,
+            {
+                Name = "input_mute_" .. s,
+                ControlType = "Button",
+                ButtonType = "Toggle",
+                PinStyle = "Both",
                 UserPin = true
             }
         )
@@ -170,7 +192,7 @@ function GetControlLayout(props)
     local status_groupbox_size = {title_size[1], 9 * btn_size[2]}
 
     local inputs_groupbox_position = {0, title_size[2] + status_groupbox_size[2] + (0.5 * btn_size[2])}
-    local inputs_groupbox_size = {title_size[1], (2 * btn_size[2]) + (input_count * btn_size[2])}
+    local inputs_groupbox_size = {title_size[1], 10 * btn_size[2]}
 
     graphics = {
         {
@@ -293,34 +315,24 @@ function GetControlLayout(props)
             StrokeWidth = 1,
             Position = inputs_groupbox_position,
             Size = inputs_groupbox_size
-        },
-        {
-            Type = "Text",
-            Text = "Signal",
-            FontSize = 10,
-            Position = {inputs_groupbox_position[1] + btn_size[1], (inputs_groupbox_position[2] + (0.5 * btn_size[2]))},
-            Size = btn_size
         }
     }
     for i = 1, input_count do
         table.insert(
             graphics,
             {
-                Type = "Text",
-                Text = "In" .. i,
+                Type = "Header",
+                Text = tostring(i),
+                HTextAlign = "Center",
+                Color = Colors.Black,
+                FontSize = 16,
                 Position = {
-                    (inputs_groupbox_position[1]),
-                    (inputs_groupbox_position[2] + (0.5 * btn_size[2])) + (i * btn_size[2])
+                    ((i - 1) * 3 * btn_size[1]) + (1 * btn_size[1]),
+                    inputs_groupbox_position[2] + 1 * btn_size[2]
                 },
-                Size = btn_size
+                Size = {2 * btn_size[1], btn_size[2]}
             }
         )
-        layout["audio_meter_" .. i] = {
-            PrettyName = "Input " .. i .. "~Audio Meter",
-            --Style = "Text",
-            Position = {(3 + i) * btn_size[1], inputs_groupbox_position[2] + 3 * btn_size[2]},
-            Size = {btn_size[1], 3 * btn_size[2]}
-        }
     end
 
     -- System
@@ -374,22 +386,38 @@ function GetControlLayout(props)
         Size = {3 * btn_size[1], btn_size[2]}
     }
     for i = 1, input_count do
-        layout["source_signal_" .. i] = {
-            PrettyName = string.format("Signal Presence~%02i", i),
-            Style = "Indicator",
-            Color = Colors.Green,
-            Position = {
-                (inputs_groupbox_position[1] + btn_size[1] + ((btn_size[1] - btn_size[2]) / 2)),
-                inputs_groupbox_position[2] + ((i + 0.5) * btn_size[2])
-            },
-            Size = {24, 24}
+        layout["input_name_" .. i] = {
+            PrettyName = "Input " .. i .. "~Name",
+            Style = "TextBox",
+            Position = {((i - 1) * 3 * btn_size[1]) + (1 * btn_size[1]), inputs_groupbox_position[2] + 2 * btn_size[2]},
+            Size = {2 * btn_size[1], btn_size[2]}
+        }
+        layout["input_gain_" .. i] = {
+            PrettyName = "Input " .. i .. "~Audio Gain",
+            Style = "Fader",
+            Color = Colors.Black,
+            Position = {((i - 1) * 3 * btn_size[1]) + (1 * btn_size[1]), inputs_groupbox_position[2] + 3 * btn_size[2]},
+            Size = {btn_size[1], 6 * btn_size[2]}
+        }
+        layout["input_meter_" .. i] = {
+            PrettyName = "Input " .. i .. "~Audio Meter",
+            Color = Colors.shure_green,
+            Position = {((i - 1) * 3 * btn_size[1]) + (2 * btn_size[1]), inputs_groupbox_position[2] + 3 * btn_size[2]},
+            Size = {btn_size[1], 6 * btn_size[2]}
+        }
+        layout["input_mute_" .. i] = {
+            PrettyName = "Input " .. i .. "~Mute",
+            Color = Colors.Red,
+            Legend = "Mute",
+            Position = {((i - 1) * 3 * btn_size[1]) + (1 * btn_size[1]), inputs_groupbox_position[2] + 9 * btn_size[2]},
+            Size = {2 * btn_size[1], btn_size[2]}
         }
     end
     return layout, graphics
 end
 
 if Controls then
-    input_count = 4
+    input_count = 2
 
     -- Local Structure for holding State
     shure = {
@@ -452,7 +480,13 @@ if Controls then
         fnSend("GET IP_ADDR_NET_AUDIO_PRIMARY")
         fnSend("GET IP_SUBNET_NET_AUDIO_PRIMARY")
         fnSend("GET IP_GATEWAY_NET_AUDIO_PRIMARY")
-        fnSend("SET METER_RATE 500")
+        fnSend("SET METER_RATE 1000")
+        fnSend("GET 01 CHAN_NAME")
+        fnSend("GET 02 CHAN_NAME")
+        fnSend("GET 03 CHAN_NAME")
+        fnSend("GET 04 CHAN_NAME")
+        fnSend("GET 01 AUDIO_GAIN_HI_RES")
+        fnSend("GET 02 AUDIO_GAIN_HI_RES")
         fnPoll()
     end
 
@@ -508,31 +542,42 @@ if Controls then
             print("Response:", line)
             local ch = line:sub(8, 8) -- 1 & 2 == analogue inputs, 3 & 4 == analogue outputs, 0 == all
             -- METADATA
-            if line:sub(3, 11) == "REP MODEL" then --untested
+            if line:sub(3, 11) == "REP MODEL" then
                 Controls.model_number.String = line:sub(14, -2):gsub("%s+", "")
-            elseif line:sub(3, 16) == "REP SERIAL_NUM" then --untested
+            elseif line:sub(3, 16) == "REP SERIAL_NUM" then
                 Controls.serial_number.String = line:sub(19, -2):gsub("%s+", "")
-            elseif line:sub(3, 12) == "REP FW_VER" then --untested
+            elseif line:sub(3, 12) == "REP FW_VER" then
                 Controls.firmware_version.String = line:sub(15, -2):gsub("%s+", "")
-            elseif line:sub(3, 31) == "REP IP_ADDR_NET_AUDIO_PRIMARY" then --untested
+            elseif line:sub(3, 31) == "REP IP_ADDR_NET_AUDIO_PRIMARY" then
                 Controls.audio_ip_address.String = line:sub(34, -2):gsub("%s+", "")
-            elseif line:sub(3, 33) == "REP IP_SUBNET_NET_AUDIO_PRIMARY" then --untested
+            elseif line:sub(3, 33) == "REP IP_SUBNET_NET_AUDIO_PRIMARY" then
                 Controls.audio_subnet.String = line:sub(36, -2):gsub("%s+", "")
-            elseif line:sub(3, 34) == "REP IP_GATEWAY_NET_AUDIO_PRIMARY" then --untested
-                -- CHANNELS
+            elseif line:sub(3, 34) == "REP IP_GATEWAY_NET_AUDIO_PRIMARY" then
                 Controls.audio_gateway.String = line:sub(37, -2):gsub("%s+", "")
+            -- CHANNELS
+            elseif line:sub(10, 18) == "CHAN_NAME" then
+                Controls["input_name_" .. ch].String = line:sub(21, -2):gsub("%s+", "")
             elseif line:sub(3, 8) == "SAMPLE" then
                 local sample_1, sample_2, sample_3, sample_4 =
                     string.match(line:sub(3, -1), "SAMPLE (%d+) (%d+) (%d+) (%d+)")
-                print("samples: ", sample_1, sample_2, sample_3, sample_4)
-                Controls.audio_meter_1.Value = sample_1 - 60
-                Controls.audio_meter_2.Value = sample_2 - 60
+                Controls.input_meter_1.Value = sample_1 - 60
+                Controls.input_meter_2.Value = sample_2 - 60
+            elseif line:sub(10, 26) == "AUDIO_GAIN_HI_RES" then
+                Controls["input_gain_" .. ch].String = line:sub(28, -1):gsub("%s+", "")
+            elseif line:sub(10, 19) == "AUDIO_MUTE" then
+                if line:sub(-2, -1) == "ON" then
+                    Controls["input_mute_" .. ch].Boolean = true 
+                else
+                    Controls["input_mute_" .. ch].Boolean = false
+                end
             elseif line:sub(7, 23) == "HW_GATING_LOGIC" then
                 if line:sub(-2, -1) == "ON" then
                     --Controls.Outputs[1].Boolean = true
                 else
                     --Controls.Outputs[1].Boolean = false
                 end
+            elseif line:sub(7, 25) == "AUDIO_GAIN_HI_RES" then
+                Controls["input_gain_" .. ch].Value = string.match(line:sub(7, -1), "AUDIO_GAIN_HI_RES (%d+)")
             end
             line = conn:ReadLine(TcpSocket.EOL.Custom, " >")
         end
@@ -545,6 +590,21 @@ if Controls then
             fnConnect()
         else
             print("IP Address Property Not Set")
+        end
+        for i = 1, input_count do
+            Controls["input_gain_" .. i].EventHandler = function()
+                print(string.format("%04d", Controls["input_gain_" .. i].Value))
+                fnSend(
+                    "SET 0" .. i .. " AUDIO_GAIN_HI_RES " .. string.format("%04d", Controls["input_gain_" .. i].Value)
+                )
+            end
+            Controls["input_mute_" .. i].EventHandler = function()
+                if Controls["input_mute_" .. i].Boolean then
+                    fnSend("SET 0" .. i .. " AUDIO_MUTE ON")
+                else
+                    fnSend("SET 0" .. i .. " AUDIO_MUTE OFF")
+                end
+            end
         end
     end
 end
