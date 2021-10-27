@@ -36,6 +36,12 @@ function GetProperties()
             Name = "IP Address",
             Type = "string",
             Value = "127.0.0.1"
+        },
+        {
+            Name = "Connector Type",
+            Type = "enum",
+            Choices = {"XLR", "BLOCK"},
+            Value = "XLR"
         }
     }
     return props
@@ -119,6 +125,12 @@ function GetControls(props)
             PinStyle = "Output",
             Count = 1,
             UserPin = true
+        },
+        {
+            Name = "audio_summing_mode",
+            ControlType = "Text",
+            PinStyle = "Both",
+            UserPin = true
         }
     }
     for s = 1, input_count do
@@ -128,6 +140,16 @@ function GetControls(props)
                 Name = "input_name_" .. s,
                 ControlType = "Indicator",
                 IndicatorType = "Text",
+                PinStyle = "Output",
+                UserPin = true
+            }
+        )
+        table.insert(
+            ctls,
+            {
+                Name = "input_clip_" .. s,
+                ControlType = "Indicator",
+                IndicatorType = "Led",
                 PinStyle = "Output",
                 UserPin = true
             }
@@ -189,6 +211,26 @@ function GetControls(props)
                 UserPin = true
             }
         )
+        table.insert(
+            ctls,
+            {
+                Name = "input_led_switch_" .. s,
+                ControlType = "Button",
+                ButtonType = "Toggle",
+                PinStyle = "Both",
+                UserPin = true
+            }
+        )
+        table.insert(
+            ctls,
+            {
+                Name = "input_hw_gate_" .. s,
+                ControlType = "Indicator",
+                IndicatorType = "Led",
+                PinStyle = "Output",
+                UserPin = true
+            }
+        )
     end
     for s = 1, output_count do
         table.insert(
@@ -204,9 +246,10 @@ function GetControls(props)
         table.insert(
             ctls,
             {
-                Name = "output_level_switch_" .. s,
-                ControlType = "Text",
-                PinStyle = "Both",
+                Name = "output_clip_" .. s,
+                ControlType = "Indicator",
+                IndicatorType = "Led",
+                PinStyle = "Output",
                 UserPin = true
             }
         )
@@ -245,6 +288,15 @@ function GetControls(props)
                 UserPin = true
             }
         )
+        table.insert(
+            ctls,
+            {
+                Name = "output_level_switch_" .. s,
+                ControlType = "Text",
+                PinStyle = "Both",
+                UserPin = true
+            }
+        )
     end
     return ctls
 end
@@ -267,10 +319,14 @@ function GetControlLayout(props)
 
     local title_size = {row_size * btn_size[1], 32}
 
-    local status_groupbox_size = {title_size[1], 9 * btn_size[2]}
+    local status_groupbox_size = {title_size[1], 10 * btn_size[2]}
 
     local inputs_groupbox_position = {0, title_size[2] + status_groupbox_size[2] + (0.5 * btn_size[2])}
-    local inputs_groupbox_size = {13 * btn_size[1], 15 * btn_size[2]}
+    local inputs_groupbox_size = {13 * btn_size[1], 16 * btn_size[2]}
+
+    if props["Connector Type"].Value == "BLOCK" then
+        inputs_groupbox_size[2] = 17 * btn_size[2]
+    end
 
     graphics = {
         {
@@ -380,6 +436,17 @@ function GetControlLayout(props)
             HTextAlign = "Right",
             Color = Colors.Black,
             Position = {0, title_size[2] + (7.5 * btn_size[2])},
+            Size = {3 * btn_size[1], btn_size[2]}
+        },
+        {
+            Type = "Text",
+            Text = "Summing Mode:",
+            Font = "Roboto",
+            FontSize = 12,
+            FontStyle = "Bold",
+            HTextAlign = "Right",
+            Color = Colors.Black,
+            Position = {0, title_size[2] + (8.5 * btn_size[2])},
             Size = {3 * btn_size[1], btn_size[2]}
         },
         {
@@ -540,12 +607,30 @@ function GetControlLayout(props)
         Position = {3 * btn_size[1], title_size[2] + (7.5 * btn_size[2])},
         Size = {3 * btn_size[1], btn_size[2]}
     }
+    layout["audio_summing_mode"] = {
+        PrettyName = "Audio Summing Mode",
+        Style = "ComboBox",
+        Position = {3 * btn_size[1], title_size[2] + (8.5 * btn_size[2])},
+        Size = {3 * btn_size[1], btn_size[2]}
+    }
     for i = 1, input_count do
         layout["input_name_" .. i] = {
             PrettyName = "Input " .. i .. "~Name",
             Style = "TextBox",
             Position = {((i - 1) * 3 * btn_size[1]) + (1 * btn_size[1]), inputs_groupbox_position[2] + 2 * btn_size[2]},
             Size = {2 * btn_size[1], btn_size[2]}
+        }
+        layout["input_clip_" .. i] = {
+            PrettyName = "Input " .. i .. "~Clip",
+            Style = "Indicator",
+            Color = Colors.Red,
+            Position = {
+                ((i - 1) * 3 * btn_size[1]) + (2 * btn_size[1]) +
+                    ((0.28 * btn_size[1]) + ((btn_size[1] - (0.67 * btn_size[2])) / 2)),
+                inputs_groupbox_position[2] + 4 * btn_size[2]
+            },
+            Size = {0.67 * btn_size[2], 0.67 * btn_size[2]},
+            ZOrder = 1000 + i
         }
         layout["input_gain_" .. i] = {
             PrettyName = "Input " .. i .. "~Gain",
@@ -585,37 +670,82 @@ function GetControlLayout(props)
             Size = {2 * btn_size[1], btn_size[2]}
         }
     end
+    if props["Connector Type"].Value == "BLOCK" then
+        for i = 1, input_count do
+            layout["input_led_switch_" .. i] = {
+                PrettyName = "Input " .. i .. "~LED Switch",
+                Color = Colors.Green,
+                Legend = "Switch",
+                Position = {((i - 1) * 3 * btn_size[1]) + (1 * btn_size[1]), inputs_groupbox_position[2] + 15 * btn_size[2]},
+                Size = {1.2 * btn_size[1], btn_size[2]}
+            }
+            layout["input_hw_gate_" .. i] = {
+                PrettyName = "Input " .. i .. "~Logic Gate",
+                Style = "Indicator",
+                Color = Colors.Green,
+                Position = {((i - 1) * 3 * btn_size[1]) + (1 * btn_size[1]) + (1.2 * btn_size[1]), inputs_groupbox_position[2] + 15 * btn_size[2]},
+                Size = {btn_size[2], btn_size[2]}
+            }
+        end
+    end
     for i = 1, output_count do
         layout["output_name_" .. i] = {
             PrettyName = "Output " .. i .. "~Name",
             Style = "TextBox",
-            Position = {((i - 1) * 3 * btn_size[1]) + (1 * btn_size[1]) + (6 * btn_size[1]), inputs_groupbox_position[2] + 2 * btn_size[2]},
+            Position = {
+                ((i - 1) * 3 * btn_size[1]) + (1 * btn_size[1]) + (6 * btn_size[1]),
+                inputs_groupbox_position[2] + 2 * btn_size[2]
+            },
             Size = {2 * btn_size[1], btn_size[2]}
+        }
+        layout["output_clip_" .. i] = {
+            PrettyName = "Output " .. i .. "~Clip",
+            Style = "Indicator",
+            Color = Colors.Red,
+            Position = {
+                ((i - 1) * 3 * btn_size[1]) + (2 * btn_size[1]) + (6 * btn_size[1]) +
+                    ((0.28 * btn_size[1]) + ((btn_size[1] - (0.67 * btn_size[2])) / 2)),
+                inputs_groupbox_position[2] + 4 * btn_size[2]
+            },
+            Size = {0.67 * btn_size[2], 0.67 * btn_size[2]},
+            ZOrder = 2000 + i
         }
         layout["output_gain_" .. i] = {
             PrettyName = "Output " .. i .. "~Gain",
             Style = "Fader",
             Color = Colors.Black,
-            Position = {((i - 1) * 3 * btn_size[1]) + (1 * btn_size[1]) + (6 * btn_size[1]), inputs_groupbox_position[2] + 4 * btn_size[2]},
+            Position = {
+                ((i - 1) * 3 * btn_size[1]) + (1 * btn_size[1]) + (6 * btn_size[1]),
+                inputs_groupbox_position[2] + 4 * btn_size[2]
+            },
             Size = {btn_size[1], 6 * btn_size[2]}
         }
         layout["output_meter_" .. i] = {
             PrettyName = "Output " .. i .. "~Meter",
             Color = Colors.shure_green,
-            Position = {((i - 1) * 3 * btn_size[1]) + (2 * btn_size[1]) + (6 * btn_size[1]), inputs_groupbox_position[2] + 4 * btn_size[2]},
+            Position = {
+                ((i - 1) * 3 * btn_size[1]) + (2 * btn_size[1]) + (6 * btn_size[1]),
+                inputs_groupbox_position[2] + 4 * btn_size[2]
+            },
             Size = {btn_size[1], 6 * btn_size[2]}
         }
         layout["output_mute_" .. i] = {
             PrettyName = "Output " .. i .. "~Mute",
             Color = Colors.Red,
             Legend = "Mute",
-            Position = {((i - 1) * 3 * btn_size[1]) + (1 * btn_size[1]) + (6 * btn_size[1]), inputs_groupbox_position[2] + 10 * btn_size[2]},
+            Position = {
+                ((i - 1) * 3 * btn_size[1]) + (1 * btn_size[1]) + (6 * btn_size[1]),
+                inputs_groupbox_position[2] + 10 * btn_size[2]
+            },
             Size = {2 * btn_size[1], btn_size[2]}
         }
         layout["output_level_switch_" .. i] = {
             PrettyName = "Output " .. i .. "~Level Switch",
             Style = "ComboBox",
-            Position = {((i - 1) * 3 * btn_size[1]) + (1 * btn_size[1]) + (6 * btn_size[1]), inputs_groupbox_position[2] + 12 * btn_size[2]},
+            Position = {
+                ((i - 1) * 3 * btn_size[1]) + (1 * btn_size[1]) + (6 * btn_size[1]),
+                inputs_groupbox_position[2] + 12 * btn_size[2]
+            },
             Size = {2 * btn_size[1], btn_size[2]}
         }
     end
@@ -623,8 +753,6 @@ function GetControlLayout(props)
 end
 
 if Controls then
-    input_count = 2
-
     -- Local Structure for holding State
     shure = {
         Host = "",
@@ -689,19 +817,8 @@ if Controls then
     end
 
     function fnInit()
-        fnSend("GET MODEL")
-        fnSend("GET SERIAL_NUM")
-        fnSend("GET FW_VER")
-        fnSend("GET IP_ADDR_NET_AUDIO_PRIMARY")
-        fnSend("GET IP_SUBNET_NET_AUDIO_PRIMARY")
-        fnSend("GET IP_GATEWAY_NET_AUDIO_PRIMARY")
-        fnSend("GET 00 CHAN_NAME")
-        fnSend("GET 00 AUDIO_GAIN_HI_RES")
-        fnSend("GET 00 AUDIO_MUTE")
-        fnSend("GET 00 AUDIO_GAIN")
-        fnSend("GET 00 PHANTOM_PWR_ENABLE")
-        fnSend("GET 00 AUDIO_OUT_LVL_SWITCH")
-        fnSend("SET METER_RATE 500")
+        fnSend("GET 00 ALL")
+        fnSend("SET METER_RATE 200")
         --fnPoll()
     end
 
@@ -755,7 +872,6 @@ if Controls then
         line = conn:ReadLine(TcpSocket.EOL.Custom, " >")
         while line do
             chunk, line = fnGetChunk(line:sub(3, -1)) -- Remove initial "< "
-            -- METADATA
             if chunk == "REP" then
                 -- METERING
                 print("Response:", line)
@@ -771,8 +887,9 @@ if Controls then
                 elseif chunk == "IP_SUBNET_NET_AUDIO_PRIMARY" then
                     Controls.audio_subnet.String = line:sub(2, -2):gsub("%s+$", "")
                 elseif chunk == "IP_GATEWAY_NET_AUDIO_PRIMARY" then
-                    -- CHANNELS
                     Controls.audio_gateway.String = line:sub(2, -2):gsub("%s+$", "")
+                elseif chunk == "AUDIO_SUMMING_MODE" then
+                    Controls.audio_summing_mode.String = line
                 elseif tonumber(chunk, 10) then
                     local ch = chunk:sub(-1, -1) -- 1 & 2 == analogue inputs, 3 & 4 == analogue outputs, 0 == all
                     chunk, line = fnGetChunk(line)
@@ -789,17 +906,17 @@ if Controls then
                             else
                                 Controls["input_mute_" .. ch].Boolean = false
                             end
-                        elseif chunk == "HW_GATING_LOGIC" then
-                            if line == "ON" then
-                                --Controls["" .. ch].Boolean = true
-                            else
-                                --Controls["" .. ch].Boolean = false
-                            end
                         elseif chunk == "CHAN_LED_IN_STATE" then
                             if line == "ON" then
-                                --Controls["" .. ch].Boolean = true
+                                Controls["input_led_switch_" .. ch].Boolean = true
                             else
-                                --Controls["" .. ch].Boolean = false
+                                Controls["input_led_switch_" .. ch].Boolean = false
+                            end
+                        elseif chunk == "HW_GATING_LOGIC" then
+                            if line == "ON" then
+                                Controls["input_hw_gate_" .. ch].Boolean = true
+                            else
+                                Controls["input_hw_gate_" .. ch].Boolean = false
                             end
                         elseif chunk == "AUDIO_GAIN_HI_RES" then
                             Controls["input_gain_" .. ch].Value = line --string.match(line:sub(7, -1), "AUDIO_GAIN_HI_RES (%d+)")
@@ -809,9 +926,15 @@ if Controls then
                             else
                                 Controls["input_phantom_power_" .. ch].Boolean = false
                             end
+                        elseif chunk == "AUDIO_OUT_CLIP_INDICATOR" then
+                            if line == "ON" then
+                                Controls["input_clip_" .. ch].Boolean = true
+                            else
+                                Controls["input_clip_" .. ch].Boolean = false
+                            end
                         end
                     elseif ch == "3" or ch == "4" then
-                        ch = string.sub(tostring(ch - 2),1,-3)
+                        ch = string.sub(tostring(ch - 2), 1, -3)
                         if chunk == "CHAN_NAME" then
                             Controls["output_name_" .. ch].String = line:sub(2, -2):gsub("%s+$", "")
                         elseif chunk == "AUDIO_GAIN_HI_RES" then
@@ -823,6 +946,12 @@ if Controls then
                                 Controls["output_mute_" .. ch].Boolean = true
                             else
                                 Controls["output_mute_" .. ch].Boolean = false
+                            end
+                        elseif chunk == "AUDIO_OUT_CLIP_INDICATOR" then
+                            if line == "ON" then
+                                Controls["output_clip_" .. ch].Boolean = true
+                            else
+                                Controls["output_clip_" .. ch].Boolean = false
                             end
                         end
                     end
@@ -845,6 +974,12 @@ if Controls then
             fnConnect()
         else
             print("IP Address Property Not Set")
+        end
+        Controls.audio_summing_mode.Choices = {"OFF", "1+2", "3+4", "1+2/3+4"}
+        Controls.audio_summing_mode.EventHandler = function()
+            fnSend(
+                    "SET AUDIO_SUMMING_MODE " .. Controls.audio_summing_mode.String
+                )
         end
         for i = 1, input_count do
             Controls["input_gain_" .. i].EventHandler = function()
@@ -874,12 +1009,20 @@ if Controls then
                     fnSend("SET 0" .. i .. " PHANTOM_PWR_ENABLE OFF")
                 end
             end
+            Controls["input_led_switch_" .. i].EventHandler = function()
+                if Controls["input_led_switch_" .. i].Boolean then
+                    fnSend("SET 0" .. i .. " CHAN_LED_IN_STATE ON")
+                else
+                    fnSend("SET 0" .. i .. " CHAN_LED_IN_STATE OFF")
+                end
+            end
         end
         for i = 1, output_count do
             Controls["output_gain_" .. i].EventHandler = function()
                 print(string.format("%04d", Controls["output_gain_" .. i].Value))
                 fnSend(
-                    "SET 0" .. (i + 2) .. " AUDIO_GAIN_HI_RES " .. string.format("%04d", Controls["output_gain_" .. i].Value)
+                    "SET 0" ..
+                        (i + 2) .. " AUDIO_GAIN_HI_RES " .. string.format("%04d", Controls["output_gain_" .. i].Value)
                 )
             end
             Controls["output_mute_" .. i].EventHandler = function()
