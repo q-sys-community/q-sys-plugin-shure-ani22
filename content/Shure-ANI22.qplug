@@ -5,8 +5,8 @@
 PluginInfo = {
     Name = "Shure~ANI22 (0.0.0.0-master)", -- The tilde here indicates folder structure in the Shematic Elements pane
     Version = "0.0.0.0-master",
-    Id = "qsysc.shure.icp-401uhd.0.0.0.0-master", -- show this is just a unique id. Show some commented out 'fun' unique ids
-    Description = "Control for Shure ANI22 multi-window video processor",
+    Id = "qsysc.shure.ani22.0.0.0.0-master", -- show this is just a unique id. Show some commented out 'fun' unique ids
+    Description = "Control for Shure ANI22 audio network interface",
     ShowDebug = true,
     Author = "Solo Works London"
 }
