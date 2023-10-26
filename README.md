@@ -17,8 +17,5 @@ A control plugin for the Shure ANI22 Audio Network Interface
 - Output clip LED
 - Output analog gain switch
 - Toggle output mute
-  
-## Untested features
-
 - Logic LED switch (ANI22-BLOCK only)
 - Logic hardware gate (ANI22-BLOCK only)
